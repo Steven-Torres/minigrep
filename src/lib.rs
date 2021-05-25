@@ -1,4 +1,5 @@
 use std::io::{self, Read, Write};
+use std::process::Command;
 use std::path::PathBuf;
 use std::error::Error;
 use std::fs::File;
@@ -9,7 +10,7 @@ use structopt::StructOpt;
 #[structopt(about = "grep, but mini.")]
 pub struct Config {
 	#[structopt(help = "Query to search for in input")]
-	pub query: String,
+	pub query: Option<String>,
 	#[structopt(
 		parse(from_os_str),
 		help = "File input or path to file input to search (leave out for standard input)"
@@ -21,16 +22,40 @@ pub struct Config {
 		help = "Do a case insensitive search"
 	)]
 	pub ignore_case: bool,
+	#[structopt(subcommand)]
+	pub subcmd: Option<SubCmd>
+}
+
+#[derive(StructOpt, Debug)]
+pub enum SubCmd {
+	#[structopt(about = "Update to the latest version of minigrep")]
+	Update
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+	if config.subcmd.is_some() && config.query.is_none() {
+		println!("Updating...");
+
+		Command::new("sh")
+			.args(&[
+				"-c",
+				"curl -fsSL https://raw.githubusercontent.com/Steven-Torres/minigrep/main/install.sh | sh"
+			])
+			.output()?;
+			
+		println!("Minigrep successfully updated!");
+		return Ok(());
+	}
+
 	let contents = get_contents(config.filename)?;
 
-	let results = search(&config.query, &contents, config.ignore_case)?;
-
-	let mut handle = io::BufWriter::new(io::stdout());
-	for line in results {
-		writeln!(handle, "{}", line)?;
+	if config.query.is_some() {
+		let results = search(&config.query.unwrap(), &contents, config.ignore_case)?;
+	
+		let mut handle = io::BufWriter::new(io::stdout());
+		for line in results {
+			writeln!(handle, "{}", line)?;
+		}
 	}
 
 	Ok(())
