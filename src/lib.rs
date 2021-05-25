@@ -1,4 +1,5 @@
 use std::io::{self, Read, Write};
+use std::process::Command;
 use std::path::PathBuf;
 use std::error::Error;
 use std::fs::File;
@@ -34,6 +35,15 @@ pub enum SubCmd {
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 	if config.subcmd.is_some() && config.query.is_none() {
 		println!("Updating...");
+
+		Command::new("sh")
+			.args(&[
+				"-c",
+				"curl -fsSL https://raw.githubusercontent.com/Steven-Torres/minigrep/main/install.sh | sh"
+			])
+			.output()?;
+			
+		println!("Minigrep successfully updated!");
 		return Ok(());
 	}
 
@@ -76,7 +86,6 @@ fn get_contents(filename: Option<PathBuf>) -> Result<String, Box<dyn Error>> {
 	if filename.is_some() {
 		let path = filename.unwrap();
 		let f = File::open(path)?;
-		println!("{:?}", f);
 		let mut reader = io::BufReader::new(f);
 		reader.read_to_string(&mut buffer)?;
 	} else {
