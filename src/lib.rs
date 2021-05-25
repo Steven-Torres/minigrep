@@ -9,7 +9,7 @@ use structopt::StructOpt;
 #[structopt(about = "grep, but mini.")]
 pub struct Config {
 	#[structopt(help = "Query to search for in input")]
-	pub query: String,
+	pub query: Option<String>,
 	#[structopt(
 		parse(from_os_str),
 		help = "File input or path to file input to search (leave out for standard input)"
@@ -21,16 +21,31 @@ pub struct Config {
 		help = "Do a case insensitive search"
 	)]
 	pub ignore_case: bool,
+	#[structopt(subcommand)]
+	pub subcmd: Option<SubCmd>
+}
+
+#[derive(StructOpt, Debug)]
+pub enum SubCmd {
+	#[structopt(about = "Update to the latest version of minigrep")]
+	Update
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+	if config.subcmd.is_some() && config.query.is_none() {
+		println!("Updating...");
+		return Ok(());
+	}
+
 	let contents = get_contents(config.filename)?;
 
-	let results = search(&config.query, &contents, config.ignore_case)?;
-
-	let mut handle = io::BufWriter::new(io::stdout());
-	for line in results {
-		writeln!(handle, "{}", line)?;
+	if config.query.is_some() {
+		let results = search(&config.query.unwrap(), &contents, config.ignore_case)?;
+	
+		let mut handle = io::BufWriter::new(io::stdout());
+		for line in results {
+			writeln!(handle, "{}", line)?;
+		}
 	}
 
 	Ok(())
@@ -61,6 +76,7 @@ fn get_contents(filename: Option<PathBuf>) -> Result<String, Box<dyn Error>> {
 	if filename.is_some() {
 		let path = filename.unwrap();
 		let f = File::open(path)?;
+		println!("{:?}", f);
 		let mut reader = io::BufReader::new(f);
 		reader.read_to_string(&mut buffer)?;
 	} else {
