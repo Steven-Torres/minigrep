@@ -9,7 +9,7 @@ use structopt::StructOpt;
 #[derive(StructOpt, Debug)]
 #[structopt(about = "grep, but mini.")]
 pub struct Config {
-	#[structopt(help = "Query to search for in input")]
+	#[structopt(help = "Query to search for in input", required_unless = "update")]
 	pub query: Option<String>,
 	#[structopt(
 		parse(from_os_str),
@@ -22,18 +22,12 @@ pub struct Config {
 		help = "Do a case insensitive search"
 	)]
 	pub ignore_case: bool,
-	#[structopt(subcommand)]
-	pub subcmd: Option<SubCmd>
-}
-
-#[derive(StructOpt, Debug)]
-pub enum SubCmd {
-	#[structopt(about = "Update to the latest version of minigrep")]
-	Update
+	#[structopt(short, long, help = "Update to the latest version of minigrep")]
+	pub update: bool
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-	if config.subcmd.is_some() && config.query.is_none() {
+	if config.update && config.query.is_none() {
 		println!("Updating...");
 
 		Command::new("sh")
@@ -54,6 +48,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 	
 		let mut handle = io::BufWriter::new(io::stdout());
 		for line in results {
+			let line = highlight_match(line)?;
 			writeln!(handle, "{}", line)?;
 		}
 	}
@@ -61,19 +56,19 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 	Ok(())
 }
 
-pub fn search(
+pub fn search<'a>(
 	query: &str,
-	contents: &str,
+	contents: &'a str,
 	ignore_case: bool
-) -> Result<Vec<String>, Box<dyn Error>> {
+) -> Result<Vec<(&'a str, usize, usize)>, Box<dyn Error>> {
 	let query = if ignore_case { query.to_lowercase() } else { String::from(query) };
 	let mut results = Vec::new();
 
   for line in contents.lines() {
-		if !ignore_case && line.contains(&query) ||
-		ignore_case && line.to_lowercase().contains(&query) {
-			let s = highlight_match(line, &query)?;
-			results.push(s);
+		if is_match(ignore_case, line, &query) {
+			let (start_index, end_index) = get_indexes(line, &query)?;
+			let m = (line, start_index, end_index);
+			results.push(m);
 		}
 	}
 
@@ -96,10 +91,12 @@ fn get_contents(filename: Option<PathBuf>) -> Result<String, Box<dyn Error>> {
 	Ok(buffer)
 }
 
-fn highlight_match(line: &str, query: &str) -> Result<String, String> {
-	let red = "\x1b[0;31m";
-	let no_color = "\x1b[0m";
+fn is_match(ignore_case: bool, line: &str, query: &str) -> bool {
+	!ignore_case && line.contains(query) ||
+	ignore_case && line.to_lowercase().contains(query)
+}
 
+fn get_indexes(line: &str, query: &str) -> Result<(usize, usize), String> {
 	let start_index = line.find(&query)
 		.or_else(|| line.to_lowercase().find(&query));
 
@@ -108,11 +105,21 @@ fn highlight_match(line: &str, query: &str) -> Result<String, String> {
 		Some(index) => index
 	};
 
-	let end_index = start_index + query.len() + red.len();
+	let end_index = start_index + query.len();
 
-	let mut s = String::from(line);
-	s.insert_str(start_index, red);
+	Ok((start_index, end_index))
+}
+
+fn highlight_match(match_info: (&str, usize, usize)) -> Result<String, String> {
+	let red = "\x1b[0;31m";
+	let no_color = "\x1b[0m";
+
+	let (s, start_index, end_index) = match_info;
+
+	let mut s = s.to_string();
+
 	s.insert_str(end_index, no_color);
+	s.insert_str(start_index, red);
 
 	Ok(s)
 }
