@@ -1,15 +1,23 @@
-use std::io::{self, Read, Write};
-use std::process::Command;
-use std::path::PathBuf;
-use std::error::Error;
-use std::fs::File;
-
+use std::{
+	io::{self, Write},
+	process::Command,
+	path::PathBuf,
+	error::Error,
+};
 use structopt::StructOpt;
+
+mod utils;
+use utils::{
+	get_contents,
+	is_match,
+	get_indexes,
+	highlight_match
+};
 
 #[derive(StructOpt, Debug)]
 #[structopt(about = "grep, but mini.")]
 pub struct Config {
-	#[structopt(help = "Query to search for in input")]
+	#[structopt(help = "Query to search for in input", required_unless = "update")]
 	pub query: Option<String>,
 	#[structopt(
 		parse(from_os_str),
@@ -22,28 +30,15 @@ pub struct Config {
 		help = "Do a case insensitive search"
 	)]
 	pub ignore_case: bool,
-	#[structopt(subcommand)]
-	pub subcmd: Option<SubCmd>
-}
-
-#[derive(StructOpt, Debug)]
-pub enum SubCmd {
-	#[structopt(about = "Update to the latest version of minigrep")]
-	Update
+	#[structopt(short, long, help = "Update to the latest version of minigrep")]
+	pub update: bool,
+	#[structopt(short, long, help = "Exclude color codes from output")]
+	pub no_color: bool,
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-	if config.subcmd.is_some() && config.query.is_none() {
-		println!("Updating...");
-
-		Command::new("sh")
-			.args(&[
-				"-c",
-				"curl -fsSL https://raw.githubusercontent.com/Steven-Torres/minigrep/main/install.sh | sh"
-			])
-			.output()?;
-			
-		println!("Minigrep successfully updated!");
+	if config.update && config.query.is_none() {
+		update()?;
 		return Ok(());
 	}
 
@@ -54,6 +49,11 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 	
 		let mut handle = io::BufWriter::new(io::stdout());
 		for line in results {
+			let line = if config.no_color {
+				String::from(line.0)
+			} else {
+				highlight_match(line)?
+			};
 			writeln!(handle, "{}", line)?;
 		}
 	}
@@ -61,58 +61,34 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 	Ok(())
 }
 
-pub fn search(
+pub fn search<'a>(
 	query: &str,
-	contents: &str,
+	contents: &'a str,
 	ignore_case: bool
-) -> Result<Vec<String>, Box<dyn Error>> {
+) -> Result<Vec<(&'a str, usize, usize)>, Box<dyn Error>> {
 	let query = if ignore_case { query.to_lowercase() } else { String::from(query) };
 	let mut results = Vec::new();
 
   for line in contents.lines() {
-		if !ignore_case && line.contains(&query) ||
-		ignore_case && line.to_lowercase().contains(&query) {
-			let s = highlight_match(line, &query)?;
-			results.push(s);
+		if is_match(ignore_case, line, &query) {
+			let (start_index, end_index) = get_indexes(line, &query)?;
+			results.push((line, start_index, end_index));
 		}
 	}
 
 	Ok(results)
 }
 
-fn get_contents(filename: Option<PathBuf>) -> Result<String, Box<dyn Error>> {
-	let mut buffer = String::new();
+fn update() -> Result<(), Box<dyn Error>> {
+	println!("Updating...");
 
-	if filename.is_some() {
-		let path = filename.unwrap();
-		let f = File::open(path)?;
-		let mut reader = io::BufReader::new(f);
-		reader.read_to_string(&mut buffer)?;
-	} else {
-		let mut reader = io::BufReader::new(io::stdin());
-		reader.read_to_string(&mut buffer)?;
-	}
-
-	Ok(buffer)
-}
-
-fn highlight_match(line: &str, query: &str) -> Result<String, String> {
-	let red = "\x1b[0;31m";
-	let no_color = "\x1b[0m";
-
-	let start_index = line.find(&query)
-		.or_else(|| line.to_lowercase().find(&query));
-
-	let start_index = match start_index {
-		None => return Err("cannot read lines".to_string()),
-		Some(index) => index
-	};
-
-	let end_index = start_index + query.len() + red.len();
-
-	let mut s = String::from(line);
-	s.insert_str(start_index, red);
-	s.insert_str(end_index, no_color);
-
-	Ok(s)
+	Command::new("sh")
+		.args(&[
+			"-c",
+			"curl -fsSL https://raw.githubusercontent.com/Steven-Torres/minigrep/main/install.sh | sh"
+		])
+		.output()?;
+		
+	println!("Minigrep successfully updated!");
+	Ok(())
 }

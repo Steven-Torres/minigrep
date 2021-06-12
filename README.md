@@ -11,7 +11,8 @@ curl -fsSL https://raw.githubusercontent.com/Steven-Torres/minigrep/main/install
 ## Updating
 
 ```sh
-minigrep update
+minigrep -u
+minigrep --update
 ```
 
 ## Usage
@@ -25,5 +26,9 @@ minigrep <query> [filename]? [FLAGS]
 ## Flags
 
 ```
+-h, --help
 -i, --ignore-case
+-n, --no-color
+-u, --update
+-V, --version
 ```
