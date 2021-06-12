@@ -26,5 +26,9 @@ minigrep <query> [filename]? [FLAGS]
 ## Flags
 
 ```
+-h, --help
 -i, --ignore-case
+-n, --no-color
+-u, --update
+-V, --version
 ```
