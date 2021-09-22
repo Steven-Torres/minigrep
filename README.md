@@ -13,7 +13,7 @@ $ curl -fsSL https://raw.githubusercontent.com/Steven-Torres/minigrep/main/insta
 ### Windows (Powershell)
 
 ```pwsh
-PS> iwr -URI https://raw.githubusercontent.com/Steven-Torres/minigrep/main/install.ps1 | iex
+PS> iwr -URI "https://raw.githubusercontent.com/Steven-Torres/minigrep/main/install.ps1" | iex
 ```
 
 ## Updating
