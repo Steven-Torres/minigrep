@@ -4,8 +4,16 @@ A grep clone built in rust based on the [minigrep example](https://doc.rust-lang
 
 ## Installation
 
+### MacOS / Linux
+
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Steven-Torres/minigrep/main/install.sh | sh
+$ curl -fsSL https://raw.githubusercontent.com/Steven-Torres/minigrep/main/install.sh | sh
+```
+
+### Windows (Powershell)
+
+```pwsh
+PS> iwr -URI https://raw.githubusercontent.com/Steven-Torres/minigrep/main/install.ps1 | iex
 ```
 
 ## Updating
