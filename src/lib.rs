@@ -1,18 +1,12 @@
 use std::{
-	io::{self, Write},
-	process::Command,
-	path::PathBuf,
 	error::Error,
+	io::{self, Write},
+	path::PathBuf,
 };
 use structopt::StructOpt;
 
 mod utils;
-use utils::{
-	get_contents,
-	is_match,
-	get_indexes,
-	highlight_match
-};
+use utils::{get_contents, get_indexes, highlight_match, is_match};
 
 #[derive(StructOpt, Debug)]
 #[structopt(about = "grep, but mini.")]
@@ -24,29 +18,17 @@ pub struct Config {
 		help = "File input or path to file input to search (leave out for standard input)"
 	)]
 	pub filename: Option<PathBuf>,
-	#[structopt(
-		short,
-		long,
-		help = "Do a case insensitive search"
-	)]
+	#[structopt(short, long, help = "Do a case insensitive search")]
 	pub ignore_case: bool,
-	#[structopt(short, long, help = "Update to the latest version of minigrep")]
-	pub update: bool,
 	#[structopt(short, long, help = "Exclude color codes from output")]
 	pub no_color: bool,
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-	if config.update && config.query.is_none() {
-		update()?;
-		return Ok(());
-	}
-
 	let contents = get_contents(config.filename)?;
 
 	if config.query.is_some() {
 		let results = search(&config.query.unwrap(), &contents, config.ignore_case)?;
-	
 		let mut handle = io::BufWriter::new(io::stdout());
 		for line in results {
 			let line = if config.no_color {
@@ -64,12 +46,16 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 pub fn search<'a>(
 	query: &str,
 	contents: &'a str,
-	ignore_case: bool
+	ignore_case: bool,
 ) -> Result<Vec<(&'a str, usize, usize)>, Box<dyn Error>> {
-	let query = if ignore_case { query.to_lowercase() } else { String::from(query) };
+	let query = if ignore_case {
+		query.to_lowercase()
+	} else {
+		String::from(query)
+	};
 	let mut results = Vec::new();
 
-  for line in contents.lines() {
+	for line in contents.lines() {
 		if is_match(ignore_case, line, &query) {
 			let (start_index, end_index) = get_indexes(line, &query)?;
 			results.push((line, start_index, end_index));
@@ -77,18 +63,4 @@ pub fn search<'a>(
 	}
 
 	Ok(results)
-}
-
-fn update() -> Result<(), Box<dyn Error>> {
-	println!("Updating...");
-
-	Command::new("sh")
-		.args(&[
-			"-c",
-			"curl -fsSL https://raw.githubusercontent.com/Steven-Torres/minigrep/main/install.sh | sh"
-		])
-		.output()?;
-		
-	println!("Minigrep successfully updated!");
-	Ok(())
 }
