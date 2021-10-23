@@ -1,6 +1,8 @@
 #!/bin/sh
 
-curl -sSL https://github.com/Steven-Torres/minigrep/releases/latest/download/minigrep --output /usr/local/bin/minigrep
+curl \
+	-sSL https://github.com/Steven-Torres/minigrep/releases/latest/download/minigrep \
+	--output /usr/local/bin/minigrep
 
 chmod +x /usr/local/bin/minigrep
 
